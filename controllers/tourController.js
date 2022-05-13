@@ -33,9 +33,34 @@ exports.checkID = (req, res, next, val) => {
 //ROUTE HANDLER
 /// Getting all the tours
 exports.getAllTours = async (req, res) => {
-  // console.log(req.requestTime);
   try {
-    const tours = await Tour.find();
+    // CREATING QUERY
+    //1.) Filtering
+    const queryObj = { ...req.query };
+    const excludedFields = ['page', 'sort', 'limit', 'fields'];
+    excludedFields.forEach((el) => delete queryObj[el]);
+    // console.log(req.query, queryObj);
+
+    // const query =  Tour.find()
+    //   .where('duration')
+    //   .equals(5)
+    //   .where('difficulty')
+    //   .equals('easy');
+
+    //2.) Advance Filtering
+    let queryStr = JSON.stringify(queryObj);
+    queryStr = queryStr.replace(/\b(gte|gt|lte|lt)\b/g, (match) => `$${match}`);
+    console.log(JSON.parse(queryStr));
+    // { duration: { $gte: '5' }, difficulty: 'easy' } ---> mongoDB
+    // { duration: { gte: '5' }, difficulty: 'easy' }
+
+    //Executing Query
+    const query = Tour.find(JSON.parse(queryStr));
+
+    //console.log(req.query);
+    const tours = await query;
+
+    // SENDING RESPONSE
     res.status(200).json({
       status: 'success',
       // requestedAt: req.requestTime,
