@@ -1,6 +1,8 @@
 const fs = require('fs');
 const Tour = require('../models/tourModel');
 
+const APIFeatures = require('../utils/apiFeatures');
+
 //Reading the data-json file
 // const tours = JSON.parse(
 //   fs.readFileSync(`${__dirname}/../dev-data/data/tours-simple.json`)
@@ -30,15 +32,25 @@ exports.checkID = (req, res, next, val) => {
     };
 */
 
+exports.aliasTopTours = (req, res, next) => {
+  req.query.sort = 'price,-ratingsAverage';
+  req.query.limit = '5';
+  req.query.fields = 'name,price,ratingsAverage,summary,difficulty';
+
+  next();
+};
+
 //ROUTE HANDLER
 /// Getting all the tours
 exports.getAllTours = async (req, res) => {
   try {
     // CREATING QUERY
-    //1.) Filtering
-    const queryObj = { ...req.query };
-    const excludedFields = ['page', 'sort', 'limit', 'fields'];
-    excludedFields.forEach((el) => delete queryObj[el]);
+    //1A.) Filtering
+    // console.log(req.query);
+    // console.log(JSON.stringify(req.query));
+    // const queryObj = { ...req.query };
+    // const excludedFields = ['page', 'sort', 'limit', 'fields'];
+    // excludedFields.forEach((el) => delete queryObj[el]);
     // console.log(req.query, queryObj);
 
     // const query =  Tour.find()
@@ -47,18 +59,54 @@ exports.getAllTours = async (req, res) => {
     //   .where('difficulty')
     //   .equals('easy');
 
-    //2.) Advance Filtering
-    let queryStr = JSON.stringify(queryObj);
-    queryStr = queryStr.replace(/\b(gte|gt|lte|lt)\b/g, (match) => `$${match}`);
-    console.log(JSON.parse(queryStr));
+    //1B.) Advance Filtering
+    // let queryStr = JSON.stringify(queryObj);
+    // queryStr = queryStr.replace(/\b(gte|gt|lte|lt)\b/g, (match) => `$${match}`);
+    // console.log(JSON.parse(queryStr));
     // { duration: { $gte: '5' }, difficulty: 'easy' } ---> mongoDB
     // { duration: { gte: '5' }, difficulty: 'easy' }
 
     //Executing Query
-    const query = Tour.find(JSON.parse(queryStr));
+    // let query = Tour.find(JSON.parse(queryStr));
 
-    //console.log(req.query);
-    const tours = await query;
+    //2.)Sorting
+    // if (req.query.sort) {
+    //   const querySort = req.query.sort.split(',').join(' ');
+    //   query = query.sort(querySort);
+    // } else {
+    //   // query = query.sort('-createdAt');
+    //   query = query.sort('-_id');
+    // }
+
+    //3.) FIELDS LIMITS
+    // if (req.query.fields) {
+    //   const fields = req.query.fields.split(',').join(' ');
+    //   if (fields.includes('createdAt'))
+    //     throw new Error('Accessing this field is not allowed');
+    //   query = query.select(fields);
+    //   // console.log(req.query);
+    // } else {
+    //   query = query.select('-__v');
+    //   // query = query.select('-__v');
+    // }
+
+    //4.) Pagination
+    // const page = +req.query.page || 1;
+    // const limit = +req.query.limit || 100;
+    // const skip = (page - 1) * limit;
+    // console.log(page, limit, skip);
+
+    // page 1 1-10, page 2 11-20, page 3 21-30
+    // query = query.skip(skip).limit(limit);
+
+    //Execute Query
+
+    const features = new APIFeatures(Tour.find(), req.query)
+      .filter()
+      .sort()
+      .limitFields()
+      .paginate();
+    const tours = await features.query;
 
     // SENDING RESPONSE
     res.status(200).json({
@@ -174,6 +222,46 @@ exports.deleteTour = async (req, res) => {
     res.status(204).json({
       status: 'success',
       data: null,
+    });
+  } catch (err) {
+    res.status(404).json({
+      status: 'Fail',
+      message: err,
+    });
+  }
+};
+
+exports.getTourStats = async (req, res) => {
+  try {
+    const stats = await Tour.aggregate([
+      {
+        $match: { ratingsAverage: { $gte: 4.5 } },
+      },
+      {
+        $group: {
+          // _id: '$difficulty',
+          _id: { $toUpper: '$difficulty' },
+          numTours: { $sum: 1 },
+          numRating: { $sum: '$ratingsQuantity' },
+          avgRating: { $avg: '$ratingsAverage' },
+          avgPrice: { $avg: '$price' },
+          minPrice: { $min: '$price' },
+          maxPrice: { $max: '$price' },
+        },
+      },
+      {
+        $sort: { avgPrice: 1 },
+      },
+      // {
+      //   $match: { _id: { $ne: 'EASY' } },
+      // },
+    ]);
+
+    res.status(200).json({
+      status: 'Success',
+      data: {
+        stats,
+      },
     });
   } catch (err) {
     res.status(404).json({
