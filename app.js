@@ -3,9 +3,10 @@ const express = require('express');
 const morgan = require('morgan');
 const { nextTick } = require('process');
 
-const app = express();
 const tourRouter = require('./routes/tourRoutes');
 const userRouter = require('./routes/userRoutes');
+
+const app = express();
 
 //1.) Middleware
 // console.log(process.env.NODE_ENV);
@@ -29,6 +30,18 @@ app.use((req, res, next) => {
 
 app.use('/api/v1/tours', tourRouter);
 app.use('/api/v1/users', userRouter);
+
+//HANDLING UNHANDLE ROUTES
+app.all('*', (req, res, next) => {
+  res.status(404).json({
+    status: 'Fail',
+    message: `Can't find this ${req.originalUrl} url on this server`,
+  });
+  next();
+});
+
+//GLOBAL ERROR HANDLING MIDDLEWARE
+
 //Get all the tours
 // app.get('/api/v1/tours', getAllTours);
 
