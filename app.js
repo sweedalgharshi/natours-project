@@ -2,6 +2,8 @@ const fs = require('fs');
 const express = require('express');
 const morgan = require('morgan');
 const { nextTick } = require('process');
+const AppError = require('./utils/appError');
+const globalErrorHandler = require('./controllers/errorController');
 
 const tourRouter = require('./routes/tourRoutes');
 const userRouter = require('./routes/userRoutes');
@@ -33,15 +35,24 @@ app.use('/api/v1/users', userRouter);
 
 //HANDLING UNHANDLE ROUTES
 app.all('*', (req, res, next) => {
-  res.status(404).json({
-    status: 'Fail',
-    message: `Can't find this ${req.originalUrl} url on this server`,
-  });
-  next();
+  // res.status(404).json({
+  //   status: 'Fail',
+  //   message: `Can't find this ${req.originalUrl} url on this server`,
+  // });
+
+  // const err = new Error(
+  //   `Can't find this ${req.originalUrl} url on this server`
+  // );
+  // err.status = 'fail';
+  // err.statusCode = 404;
+
+  next(
+    new AppError(`Can't find this ${req.originalUrl} url on this server`, 400)
+  );
 });
 
 //GLOBAL ERROR HANDLING MIDDLEWARE
-
+app.use(globalErrorHandler);
 //Get all the tours
 // app.get('/api/v1/tours', getAllTours);
 
