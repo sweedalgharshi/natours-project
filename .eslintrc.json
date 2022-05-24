@@ -15,5 +15,14 @@
     "class-methods-use-this": "off",
     "prefer-destructuring": ["off", { "object": true, "array": false }],
     "no-unused-vars": ["off", { "argsIgnorePattern": "req|res|next|val" }]
-  }
+  },
+  "import/no-extraneous-dependencies": [
+    "error",
+    {
+      "devDependencies": false,
+      "optionalDependencies": false,
+      "peerDependencies": false,
+      "packageDir": "./"
+    }
+  ]
 }
